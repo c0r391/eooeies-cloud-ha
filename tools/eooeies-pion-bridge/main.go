@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -283,6 +284,70 @@ func (d *h264Depay) push(seq uint16, payload []byte) {
 	}
 }
 
+type mediaSink struct {
+	video io.Writer
+	audio io.Writer
+	close func()
+}
+
+func newMediaSink(format string) (*mediaSink, error) {
+	if format != "mpegts" {
+		return &mediaSink{video: os.Stdout, audio: io.Discard, close: func() {}}, nil
+	}
+	videoR, videoW, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+	audioR, audioW, err := os.Pipe()
+	if err != nil {
+		_ = videoR.Close()
+		_ = videoW.Close()
+		return nil, err
+	}
+	cmd := exec.Command(
+		"ffmpeg",
+		"-hide_banner", "-loglevel", "warning",
+		"-fflags", "+genpts",
+		"-use_wallclock_as_timestamps", "1",
+		"-thread_queue_size", "512", "-f", "h264", "-i", "pipe:3",
+		"-use_wallclock_as_timestamps", "1",
+		"-thread_queue_size", "512", "-f", "mulaw", "-ar", "8000", "-ac", "1", "-i", "pipe:4",
+		"-c:v", "copy",
+		"-c:a", "aac", "-b:a", "64k",
+		"-f", "mpegts", "pipe:1",
+	)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.ExtraFiles = []*os.File{videoR, audioR}
+	if err := cmd.Start(); err != nil {
+		_ = videoR.Close()
+		_ = videoW.Close()
+		_ = audioR.Close()
+		_ = audioW.Close()
+		return nil, err
+	}
+	_ = videoR.Close()
+	_ = audioR.Close()
+	return &mediaSink{
+		video: videoW,
+		audio: audioW,
+		close: func() {
+			_ = videoW.Close()
+			_ = audioW.Close()
+			waitDone := make(chan struct{})
+			go func() { _ = cmd.Wait(); close(waitDone) }()
+			select {
+			case <-waitDone:
+			case <-time.After(3 * time.Second):
+				if cmd.Process != nil {
+					_ = cmd.Process.Kill()
+				}
+				<-waitDone
+			}
+		},
+	}, nil
+}
+
 func makeAPI() *webrtc.API {
 	se := webrtc.SettingEngine{}
 	se.SetNetworkTypes([]webrtc.NetworkType{webrtc.NetworkTypeUDP4})
@@ -307,6 +372,11 @@ func run(ctx context.Context, cfg config) error {
 		return err
 	}
 	defer pc.Close()
+	sink, err := newMediaSink(getenv("EOOEIES_OUTPUT_FORMAT", "h264"))
+	if err != nil {
+		return err
+	}
+	defer sink.close()
 	pc.OnICEConnectionStateChange(func(s webrtc.ICEConnectionState) { fmt.Fprintln(os.Stderr, "ICE", s.String()) })
 	pc.OnConnectionStateChange(func(s webrtc.PeerConnectionState) { fmt.Fprintln(os.Stderr, "PC", s.String()) })
 	deadline := time.Now().Add(time.Duration(atoi(getenv("EOOEIES_RUNTIME_SECONDS", "120"))) * time.Second)
@@ -354,7 +424,7 @@ func run(ctx context.Context, cfg config) error {
 				}
 			}()
 			go func() {
-				depay := &h264Depay{w: os.Stdout}
+				depay := &h264Depay{w: sink.video}
 				debugRTP := getenv("EOOEIES_DEBUG_RTP", "") != ""
 				debugCount := 0
 				for {
@@ -373,8 +443,12 @@ func run(ctx context.Context, cfg config) error {
 		} else {
 			go func() {
 				for {
-					if _, _, err := track.ReadRTP(); err != nil {
+					pkt, _, err := track.ReadRTP()
+					if err != nil {
 						return
+					}
+					if track.Codec().MimeType == webrtc.MimeTypePCMU && len(pkt.Payload) > 0 {
+						_, _ = sink.audio.Write(pkt.Payload)
 					}
 				}
 			}()

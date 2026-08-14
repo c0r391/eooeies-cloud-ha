@@ -34,7 +34,8 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     hass.data.setdefault(DOMAIN, {})["yaml"] = coordinator
     await async_register_live_view(hass)
     addon_configured = await async_configure_video_addon(hass, "yaml", coordinator)
-    await async_configure_go2rtc_streams(hass, "yaml", coordinator, keepalive=not addon_configured)
+    if not addon_configured:
+        await async_configure_go2rtc_streams(hass, "yaml", coordinator)
     for platform in PLATFORMS:
         hass.async_create_task(async_load_platform(hass, platform, DOMAIN, {"entry_key": "yaml"}, config))
     return True
@@ -47,7 +48,8 @@ async def async_setup_entry(hass: HomeAssistant, entry) -> bool:
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await async_register_live_view(hass)
     addon_configured = await async_configure_video_addon(hass, entry.entry_id, coordinator)
-    await async_configure_go2rtc_streams(hass, entry.entry_id, coordinator, keepalive=not addon_configured)
+    if not addon_configured:
+        await async_configure_go2rtc_streams(hass, entry.entry_id, coordinator)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 

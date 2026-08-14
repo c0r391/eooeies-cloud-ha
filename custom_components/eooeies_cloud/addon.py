@@ -89,6 +89,17 @@ async def async_configure_video_addon(hass: HomeAssistant, entry_id: str, coordi
     options.setdefault("log_level", "info")
     options["eooeies_cameras"] = list(by_name.values())
 
+    if supports_persistent_eooeies:
+        current_eooeies = sorted(
+            (item for item in existing if isinstance(item, dict)),
+            key=lambda item: str(item.get("name") or ""),
+        )
+        desired_eooeies = sorted(options["eooeies_cameras"], key=lambda item: str(item.get("name") or ""))
+        current_log_level = (addon_data.get("options") or {}).get("log_level", "info")
+        if current_eooeies == desired_eooeies and current_log_level == options.get("log_level"):
+            _LOGGER.info("Shared Video Bridge add-on already has current EOOEIES stream options")
+            return True
+
     try:
         async with session.post(
             f"{supervisor}/addons/{VIDEO_ADDON_SLUG}/options",

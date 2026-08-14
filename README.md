@@ -99,8 +99,15 @@ For each camera, the integration creates entities similar to:
 | Sensor | `sensor.front_battery` | Battery percentage |
 | Sensor | `sensor.front_status` | Raw cloud status value |
 | Sensor | `sensor.front_ip` | Camera IP reported by EOOEIES cloud |
+| Sensor | `sensor.front_wifi_signal` | Wi-Fi signal strength reported by EOOEIES cloud |
+| Sensor | `sensor.front_firmware` | Firmware version |
+| Sensor | `sensor.front_recording_resolution` | Recording resolution |
+| Sensor | `sensor.front_sd_card_free` | SD card free value when reported by the camera |
 | Sensor | `sensor.front_last_push_image` | Last event image availability |
 | Binary sensor | `binary_sensor.front_awake` | Camera awake/connectivity flag |
+| Binary sensor | `binary_sensor.front_online` | Camera online flag |
+| Binary sensor | `binary_sensor.front_live_audio` | Cloud-reported live-audio toggle/support state |
+| Binary sensor | `binary_sensor.front_recording_audio` | Cloud-reported recording-audio toggle state |
 
 Entity names depend on the camera names returned by EOOEIES.
 
@@ -154,8 +161,8 @@ This integration should not remove TP-Link/Tapo streams. The shared Video Bridge
 
 - This is a beta release.
 - The bundled live-video bridge binary is Linux amd64 and is built as a static binary for Home Assistant OS compatibility. Other architectures need a matching external bridge binary at `/config/eooeies/eooeies-bridge`.
-- The beta.2 bridge improves H.264 packet handling to reduce visible macroblock artifacts from incomplete RTP fragments.
-- Audio for EOOEIES live video is not claimed as verified in this release.
+- The beta.2+ bridge improves H.264 packet handling to reduce visible macroblock artifacts from incomplete RTP fragments.
+- The beta.7 bridge can detect the EOOEIES WebRTC audio track and has an experimental MPEG-TS/AAC diagnostic endpoint, but Home Assistant/go2rtc still uses the more stable raw-H264 live path by default. Full audio-in-live-view support is not claimed as stable yet.
 - Cloud/API changes by EOOEIES may require integration updates.
 
 ## Support this project

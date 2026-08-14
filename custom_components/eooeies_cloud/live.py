@@ -30,6 +30,7 @@ async def async_register_live_view(hass: HomeAssistant) -> None:
     if data.get(VIEW_REGISTERED):
         return
     hass.http.register_view(EooeiesLiveH264View)
+    hass.http.register_view(EooeiesLiveMpegTsView)
     data[VIEW_REGISTERED] = True
 
 
@@ -154,6 +155,21 @@ class EooeiesLiveH264View(HomeAssistantView):
     requires_auth = False
 
     async def get(self, request, entry_id: str, serial: str) -> web.StreamResponse:
+        return await _handle_live_bridge(request, entry_id, serial, output_format="h264")
+
+
+class EooeiesLiveMpegTsView(HomeAssistantView):
+    """MPEG-TS live proxy backed by the Go/Pion bridge with AAC audio when available."""
+
+    url = "/api/eooeies_cloud/live_ts/{entry_id}/{serial}.ts"
+    name = "api:eooeies_cloud:live_mpegts"
+    requires_auth = False
+
+    async def get(self, request, entry_id: str, serial: str) -> web.StreamResponse:
+        return await _handle_live_bridge(request, entry_id, serial, output_format="mpegts")
+
+
+async def _handle_live_bridge(request, entry_id: str, serial: str, *, output_format: str) -> web.StreamResponse:
         hass: HomeAssistant = request.app["hass"]
         coordinator = hass.data.get(DOMAIN, {}).get(entry_id)
         if coordinator is None:
@@ -177,6 +193,7 @@ class EooeiesLiveH264View(HomeAssistantView):
                 "EOOEIES_SN": serial,
                 "EOOEIES_RESOLUTION": "1280x720",
                 "EOOEIES_RUNTIME_SECONDS": "300",
+                "EOOEIES_OUTPUT_FORMAT": output_format,
             }
         )
 
@@ -187,11 +204,12 @@ class EooeiesLiveH264View(HomeAssistantView):
             env=env,
         )
 
+        content_type = "video/MP2T" if output_format == "mpegts" else "video/H264"
         response = web.StreamResponse(
             status=200,
             reason="OK",
             headers={
-                "Content-Type": "video/H264",
+                "Content-Type": content_type,
                 "Cache-Control": "no-store",
                 "X-Accel-Buffering": "no",
             },

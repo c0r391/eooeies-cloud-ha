@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-beta.7
+
+- Avoid unnecessary shared Video Bridge add-on restarts when EOOEIES stream options are already current.
+- Use the shared add-on's persistent EOOEIES stream configuration as the primary path instead of also pushing dynamic duplicate go2rtc updates.
+- Add more camera entities for Wi-Fi signal, firmware, network, SD card, charging, online/watch-live status, live-audio support, recording-audio status, and detection/support flags.
+- Add an experimental MPEG-TS bridge endpoint with AAC audio for diagnostics; Home Assistant/go2rtc still uses the more stable raw-H264 path by default until the audio path is fully stable.
+
 ## 0.1.0-beta.6
 
 - Improve live-stream continuity by keeping the WebRTC signaling connection alive instead of ending the bridge on idle signaling timeouts.

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-beta.3
+
+- Start the periodic go2rtc keepalive republisher only after Home Assistant has completed startup.
+- Avoids Home Assistant startup timeout warnings from the intentionally long-lived EOOEIES stream keepalive task.
+
 ## 0.1.0-beta.2
 
 - Rebuilt the bundled EOOEIES Pion bridge as a static Linux amd64 binary for Home Assistant OS compatibility.

@@ -216,8 +216,10 @@ func sendJSON(c *websocket.Conn, v any) error {
 }
 
 type h264Depay struct {
-	cur []byte
-	w   io.Writer
+	cur     []byte
+	w       io.Writer
+	lastSeq uint16
+	seenSeq bool
 }
 
 func (d *h264Depay) emit(nal []byte) {
@@ -228,28 +230,45 @@ func (d *h264Depay) emit(nal []byte) {
 	_, _ = d.w.Write(nal)
 }
 
-func (d *h264Depay) push(payload []byte) {
+func (d *h264Depay) push(seq uint16, payload []byte) {
 	if len(payload) == 0 {
 		return
 	}
+	if d.seenSeq && seq != d.lastSeq+1 {
+		// Drop an incomplete FU-A when RTP packet loss/reordering is observed;
+		// emitting partial NALs causes visible macroblock corruption.
+		d.cur = nil
+	}
+	d.seenSeq = true
+	d.lastSeq = seq
+
 	t := payload[0] & 31
 	if t >= 1 && t <= 23 {
 		if len(d.cur) > 0 {
-			d.emit(d.cur)
 			d.cur = nil
 		}
 		d.emit(payload)
 		return
 	}
-	if t == 28 && len(payload) >= 2 {
+	if t == 24 { // STAP-A: one RTP payload containing multiple complete NAL units.
+		off := 1
+		for off+2 <= len(payload) {
+			sz := int(payload[off])<<8 | int(payload[off+1])
+			off += 2
+			if sz <= 0 || off+sz > len(payload) {
+				return
+			}
+			d.emit(payload[off : off+sz])
+			off += sz
+		}
+		return
+	}
+	if t == 28 && len(payload) >= 2 { // FU-A fragmented NAL.
 		fuInd, fuHdr := payload[0], payload[1]
 		start := fuHdr&0x80 != 0
 		end := fuHdr&0x40 != 0
 		nalType := fuHdr & 31
 		if start {
-			if len(d.cur) > 0 {
-				d.emit(d.cur)
-			}
 			nalHeader := (fuInd & 0xE0) | nalType
 			d.cur = append([]byte{nalHeader}, payload[2:]...)
 		} else if len(d.cur) > 0 {
@@ -322,13 +341,19 @@ func run(ctx context.Context, cfg config) error {
 			}()
 			go func() {
 				depay := &h264Depay{w: os.Stdout}
+				debugRTP := getenv("EOOEIES_DEBUG_RTP", "") != ""
+				debugCount := 0
 				for {
 					pkt, _, err := track.ReadRTP()
 					if err != nil {
 						fmt.Fprintln(os.Stderr, "VIDEO_END", err)
 						return
 					}
-					depay.push(pkt.Payload)
+					if debugRTP && len(pkt.Payload) > 0 && debugCount < 120 {
+						fmt.Fprintf(os.Stderr, "RTP seq=%d ts=%d marker=%v payloadType=%d nalType=%d len=%d\n", pkt.SequenceNumber, pkt.Timestamp, pkt.Marker, pkt.PayloadType, pkt.Payload[0]&31, len(pkt.Payload))
+						debugCount++
+					}
+					depay.push(pkt.SequenceNumber, pkt.Payload)
 				}
 			}()
 		} else {

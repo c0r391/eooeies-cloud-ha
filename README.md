@@ -153,7 +153,8 @@ This integration should not remove TP-Link/Tapo streams. The shared Video Bridge
 ## Known limitations
 
 - This is a beta release.
-- The bundled live-video bridge binary is Linux amd64. Other architectures need a matching external bridge binary at `/config/eooeies/eooeies-bridge`.
+- The bundled live-video bridge binary is Linux amd64 and is built as a static binary for Home Assistant OS compatibility. Other architectures need a matching external bridge binary at `/config/eooeies/eooeies-bridge`.
+- The beta.2 bridge improves H.264 packet handling to reduce visible macroblock artifacts from incomplete RTP fragments.
 - Audio for EOOEIES live video is not claimed as verified in this release.
 - Cloud/API changes by EOOEIES may require integration updates.
 

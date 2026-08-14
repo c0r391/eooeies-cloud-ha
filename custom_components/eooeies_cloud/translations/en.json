@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "EOOEIES Cloud account",
+        "description": "Enter the EOOEIES account used by the mobile app. The integration uses the official EOOEIES cloud API for status, last event images, and live-video tickets.",
+        "data": {
+          "email": "Email",
+          "password": "Password",
+          "region": "Region"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect or sign in to EOOEIES. Check the account, password, region, and network connection."
+    },
+    "abort": {
+      "already_configured": "This EOOEIES account is already configured."
+    }
+  }
+}

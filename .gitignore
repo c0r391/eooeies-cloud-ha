@@ -1,0 +1,12 @@
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Local secrets and generated bridge config
+.env
+config.json
+*.log
+
+# Research/build scratch
+tools/eooeies-pion-prototype/config.json

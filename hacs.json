@@ -1,0 +1,6 @@
+{
+  "name": "EOOEIES Cloud Cameras",
+  "render_readme": true,
+  "domains": ["camera", "sensor", "binary_sensor"],
+  "homeassistant": "2024.6.0"
+}

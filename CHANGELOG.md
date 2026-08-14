@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-beta.6
+
+- Improve live-stream continuity by keeping the WebRTC signaling connection alive instead of ending the bridge on idle signaling timeouts.
+- Send periodic camera/data-channel keepalive commands during live sessions.
+- Continue periodic RTCP keyframe requests during the live session to improve recovery after stalls.
+- Validation: 75-120 second EOOEIES captures completed without H.264 corruption artifacts; remaining beta limitation is variable cloud-camera frame cadence.
+
 ## 0.1.0-beta.5
 
 - Scrub public wording so documentation and package metadata contain no personal names, private environment labels, or test-system references.

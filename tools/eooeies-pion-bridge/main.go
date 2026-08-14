@@ -9,10 +9,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -307,12 +309,15 @@ func run(ctx context.Context, cfg config) error {
 	defer pc.Close()
 	pc.OnICEConnectionStateChange(func(s webrtc.ICEConnectionState) { fmt.Fprintln(os.Stderr, "ICE", s.String()) })
 	pc.OnConnectionStateChange(func(s webrtc.PeerConnectionState) { fmt.Fprintln(os.Stderr, "PC", s.String()) })
+	deadline := time.Now().Add(time.Duration(atoi(getenv("EOOEIES_RUNTIME_SECONDS", "120"))) * time.Second)
 
 	dc, err := pc.CreateDataChannel("vicoo", nil)
 	if err != nil {
 		return err
 	}
+	var dataChannelOpen atomic.Bool
 	dc.OnOpen(func() {
+		dataChannelOpen.Store(true)
 		fmt.Fprintln(os.Stderr, "DC_OPEN")
 		ts := time.Now().Unix()
 		msgs := []map[string]any{
@@ -325,6 +330,7 @@ func run(ctx context.Context, cfg config) error {
 			_ = dc.SendText(string(b))
 		}
 	})
+	dc.OnClose(func() { dataChannelOpen.Store(false) })
 	dc.OnMessage(func(msg webrtc.DataChannelMessage) { fmt.Fprintln(os.Stderr, "DC_MSG", string(msg.Data)) })
 
 	_, _ = pc.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio, webrtc.RTPTransceiverInit{Direction: webrtc.RTPTransceiverDirectionRecvonly})
@@ -334,9 +340,17 @@ func run(ctx context.Context, cfg config) error {
 		fmt.Fprintln(os.Stderr, "TRACK", track.Kind().String(), track.Codec().MimeType)
 		if track.Kind() == webrtc.RTPCodecTypeVideo {
 			go func() {
-				for i := 0; i < 20; i++ {
+				seq := uint8(1)
+				for time.Now().Before(deadline) {
 					time.Sleep(time.Second)
-					_ = pc.WriteRTCP([]rtcp.Packet{&rtcp.PictureLossIndication{MediaSSRC: uint32(track.SSRC())}, &rtcp.FullIntraRequest{SenderSSRC: 1, MediaSSRC: uint32(track.SSRC()), FIR: []rtcp.FIREntry{{SSRC: uint32(track.SSRC()), SequenceNumber: uint8(i + 1)}}}})
+					_ = pc.WriteRTCP([]rtcp.Packet{&rtcp.PictureLossIndication{MediaSSRC: uint32(track.SSRC())}, &rtcp.FullIntraRequest{SenderSSRC: 1, MediaSSRC: uint32(track.SSRC()), FIR: []rtcp.FIREntry{{SSRC: uint32(track.SSRC()), SequenceNumber: seq}}}})
+					seq++
+					if seq == 0 {
+						seq = 1
+					}
+					if seq > 20 {
+						time.Sleep(4 * time.Second)
+					}
 				}
 			}()
 			go func() {
@@ -378,11 +392,30 @@ func run(ctx context.Context, cfg config) error {
 
 	peerIn := false
 	answerSet := false
-	deadline := time.Now().Add(time.Duration(atoi(getenv("EOOEIES_RUNTIME_SECONDS", "120"))) * time.Second)
+	lastControl := time.Now()
 	for time.Now().Before(deadline) {
-		_ = ws.SetReadDeadline(time.Now().Add(15 * time.Second))
+		if time.Since(lastControl) > 25*time.Second {
+			lastControl = time.Now()
+			_ = ws.WriteControl(websocket.PingMessage, []byte("keepalive"), time.Now().Add(5*time.Second))
+			if dataChannelOpen.Load() {
+				ts := time.Now().Unix()
+				msgs := []map[string]any{
+					{"requestID": fmt.Sprintf("keep_%d", ts), "connectionID": "7893feb", "timeStamp": ts, "action": "getStatus", "targetId": cfg.SN},
+					{"requestID": fmt.Sprintf("live_%d", ts), "connectionID": "7893feb", "timeStamp": ts, "action": "startLive", "targetId": cfg.SN, "size": cfg.Resolution, "resolution": cfg.Resolution},
+				}
+				for _, keep := range msgs {
+					b, _ := json.Marshal(keep)
+					_ = dc.SendText(string(b))
+				}
+			}
+		}
+		_ = ws.SetReadDeadline(time.Now().Add(30 * time.Second))
 		_, data, err := ws.ReadMessage()
 		if err != nil {
+			if ne, ok := err.(net.Error); ok && ne.Timeout() {
+				fmt.Fprintln(os.Stderr, "WS_IDLE")
+				continue
+			}
 			fmt.Fprintln(os.Stderr, "WS_END", err)
 			break
 		}

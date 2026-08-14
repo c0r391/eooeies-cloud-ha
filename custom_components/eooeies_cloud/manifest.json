@@ -1,7 +1,7 @@
 {
   "domain": "eooeies_cloud",
   "name": "EOOEIES Cloud Cameras",
-  "version": "0.1.0-beta.5",
+  "version": "0.1.0-beta.6",
   "documentation": "https://github.com/c0r391/eooeies-cloud-ha",
   "issue_tracker": "https://github.com/c0r391/eooeies-cloud-ha/issues",
   "iot_class": "cloud_polling",

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-beta.5
+
+- Scrub public wording so documentation and package metadata contain no personal names, private environment labels, or test-system references.
+
+
 ## 0.1.0-beta.4
 
 - Fix Home Assistant thread-safety warning by starting the go2rtc keepalive as a named background task from a callback-safe context.

@@ -4,7 +4,7 @@ A Home Assistant custom integration for EOOEIES cloud battery cameras.
 
 This integration connects to the EOOEIES cloud account used by the mobile app and exposes camera status, battery information, last event images, and live video in Home Assistant.
 
-> Beta notice: live video is validated on Marcel's Test Home Assistant with EOOEIES CG6K-style cameras and the shared Video Bridge add-on. Please test on a non-critical Home Assistant instance before using it in production.
+> Beta notice: live video has been validated with EOOEIES CG6K-style cameras and the shared Video Bridge add-on. Please test on a non-critical Home Assistant instance before using it in production.
 
 ## Features
 

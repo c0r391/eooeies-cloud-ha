@@ -237,7 +237,7 @@ def _bridge_path() -> Path | None:
 
     `/config/eooeies/eooeies-bridge` allows advanced users to override the
     bundled bridge. The HACS package includes an amd64 Linux bridge for standard
-    HAOS/Test-HA installs; other architectures need a matching external binary.
+    Home Assistant OS installs; other architectures need a matching external binary.
     """
     if EXTERNAL_BRIDGE_PATH.exists():
         return EXTERNAL_BRIDGE_PATH

@@ -25,10 +25,9 @@ def _slug(value: str) -> str:
 async def async_configure_video_addon(hass: HomeAssistant, entry_id: str, coordinator) -> bool:
     """Best-effort: add EOOEIES cameras to the shared Video Bridge add-on.
 
-    HACS installs this integration, not Home Assistant add-ons. If Marcel/the
-    user has installed the shared TP-Link Unified Video Bridge add-on, configure
-    its EOOEIES section through Supervisor while preserving existing TP-Link
-    camera options.
+    HACS installs this integration, not Home Assistant add-ons. If the shared
+    TP-Link Unified Video Bridge add-on is installed, configure its EOOEIES
+    section through Supervisor while preserving existing TP-Link camera options.
     """
     token = os.environ.get("SUPERVISOR_TOKEN")
     supervisor = os.environ.get("SUPERVISOR", "http://supervisor")

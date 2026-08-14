@@ -10,7 +10,7 @@ from urllib.parse import quote, urlparse
 from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.network import get_url
 
@@ -59,11 +59,13 @@ async def async_configure_go2rtc_streams(
     data = hass.data.setdefault(DOMAIN, {})
     task_key = f"{KEEPALIVE_TASK}_{entry_id}"
 
+    @callback
     def _start_keepalive(_event=None) -> None:
         task = data.get(task_key)
         if task is None or task.done():
-            data[task_key] = hass.async_create_task(
-                _async_configure_go2rtc_streams_forever(hass, entry_id, coordinator)
+            data[task_key] = hass.async_create_background_task(
+                _async_configure_go2rtc_streams_forever(hass, entry_id, coordinator),
+                f"EOOEIES go2rtc keepalive {entry_id}",
             )
 
     # Do not create the forever keepalive task during integration setup. Home

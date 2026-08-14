@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.0-beta.4
+
+- Fix Home Assistant thread-safety warning by starting the go2rtc keepalive as a named background task from a callback-safe context.
+
 ## 0.1.0-beta.3
 
 - Start the periodic go2rtc keepalive republisher only after Home Assistant has completed startup.
